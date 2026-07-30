@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pak Raho — Admin Panel</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #0B1F1A; color: #EDF5F1; margin: 0; padding: 0 0 40px;
+  }
+  a { color: #E8CD7A; }
+  header {
+    padding: 16px 18px; border-bottom: 1px solid rgba(212,175,55,0.2);
+    display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0;
+    background: #0B1F1A; z-index: 5;
+  }
+  header h1 { font-size: 17px; color: #E8CD7A; margin: 0; }
+  #btnLogout { background: none; border: 1px solid rgba(212,175,55,0.3); color: #9FB8B0; padding: 6px 12px; border-radius: 10px; font-size: 12.5px; cursor: pointer; }
+
+  .wrap { max-width: 620px; margin: 0 auto; padding: 16px; }
+
+  .login-card {
+    max-width: 400px; margin: 60px auto; background: #123832; border-radius: 18px; padding: 24px;
+    border: 1px solid rgba(212,175,55,0.25);
+  }
+  .login-card h2 { color: #E8CD7A; font-size: 18px; margin-top: 0; }
+  input, select {
+    width: 100%; padding: 11px 13px; border-radius: 12px; border: 1px solid rgba(212,175,55,0.3);
+    background: #0F2B24; color: #EDF5F1; font-size: 14px; margin-top: 8px;
+  }
+  button {
+    padding: 10px 14px; border-radius: 10px; border: none; font-size: 13.5px;
+    font-weight: 600; cursor: pointer;
+  }
+  .btn-primary { background: linear-gradient(160deg,#D4AF37,#E8CD7A); color: #0B3D33; width: 100%; margin-top: 12px; }
+  .btn-danger { background: #C1573A; color: #fff; }
+  .btn-warn { background: #7a5a1f; color: #fff; }
+  .btn-ghost { background: none; border: 1px solid rgba(159,184,176,0.35); color: #9FB8B0; }
+  .hidden { display: none !important; }
+  .err { color: #E15C5C; font-size: 13px; margin-top: 8px; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; }
+  .tab-btn {
+    background: #123832; color: #9FB8B0; border: 1px solid rgba(212,175,55,0.15);
+    white-space: nowrap;
+  }
+  .tab-btn.active { background: linear-gradient(160deg,#D4AF37,#E8CD7A); color: #0B3D33; border-color: transparent; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .stat-card { background: #123832; border-radius: 14px; padding: 16px; border: 1px solid rgba(212,175,55,0.15); }
+  .stat-card .num { font-size: 24px; font-weight: 700; color: #E8CD7A; }
+  .stat-card .lbl { font-size: 12px; color: #9FB8B0; margin-top: 2px; }
+
+  .card {
+    background: #123832; border-radius: 14px; padding: 14px; margin-bottom: 10px;
+    border: 1px solid rgba(212,175,55,0.12);
+  }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; background: #16443C; color: #E8CD7A;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; flex-shrink: 0;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .uname { font-weight: 600; font-size: 14px; }
+  .usub { font-size: 11.5px; color: #9FB8B0; }
+  .badge { font-size: 10.5px; padding: 2px 7px; border-radius: 8px; margin-left: 6px; }
+  .badge-banned { background: rgba(193,87,58,0.25); color: #E15C5C; }
+  .actions-row { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .actions-row button, .actions-row select { flex: 1; min-width: 90px; font-size: 12px; padding: 8px 10px; }
+
+  .post-preview { font-size: 12.5px; color: #cfe0da; margin-top: 6px; background: #0F2B24; padding: 8px 10px; border-radius: 10px; max-height: 70px; overflow: hidden; }
+  .post-preview img { max-width: 100%; border-radius: 8px; margin-top: 6px; }
+
+  .search-box { display: flex; gap: 8px; margin-bottom: 14px; }
+  .search-box input { margin-top: 0; }
+  .search-box button { flex-shrink: 0; }
+
+  .load-more { width: 100%; margin-top: 6px; }
+  .empty-note { text-align: center; color: #9FB8B0; font-size: 13px; padding: 30px 0; }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #16443C; color: #EDF5F1; padding: 10px 18px; border-radius: 12px; font-size: 13px;
+    border: 1px solid rgba(212,175,55,0.3); z-index: 50;
+  }
+</style>
+</head>
+<body>
+
+<div id="loginBox" class="login-card">
+  <h2>🔐 Pak Raho — Admin Login</h2>
+  <input type="email" id="adminEmail" placeholder="Admin email" value="sufynexsystems@gmail.com">
+  <input type="password" id="adminPass" placeholder="Password">
+  <button class="btn-primary" id="btnLogin">Login</button>
+  <div class="err hidden" id="loginErr"></div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>🕌 Pak Raho — Admin</h1>
+    <button id="btnLogout">Logout</button>
+  </header>
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="users">Users</button>
+      <button class="tab-btn" data-tab="reports">Reports</button>
+      <button class="tab-btn" data-tab="posts">All Posts</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard" class="tab-panel">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="num" id="statUsers">–</div><div class="lbl">Total Users</div></div>
+        <div class="stat-card"><div class="num" id="statPosts">–</div><div class="lbl">Total Posts</div></div>
+        <div class="stat-card"><div class="num" id="statToday">–</div><div class="lbl">Aaj ki Posts</div></div>
+        <div class="stat-card"><div class="num" id="statReports">–</div><div class="lbl">Pending Reports</div></div>
+      </div>
+      <button class="btn-ghost" id="btnRefreshDashboard" style="width:100%;">🔄 Refresh</button>
+    </div>
+
+    <!-- USERS -->
+    <div id="tab-users" class="tab-panel hidden">
+      <div class="search-box">
+        <input type="text" id="userSearchInput" placeholder="Username se search karein...">
+        <button class="btn-ghost" id="btnUserSearch">Search</button>
+      </div>
+      <div id="usersList"></div>
+      <button class="btn-ghost load-more hidden" id="btnLoadMoreUsers">Aur load karein</button>
+    </div>
+
+    <!-- REPORTS -->
+    <div id="tab-reports" class="tab-panel hidden">
+      <div id="reportsList"></div>
+      <button class="btn-ghost load-more hidden" id="btnLoadMoreReports">Aur load karein</button>
+    </div>
+
+    <!-- ALL POSTS -->
+    <div id="tab-posts" class="tab-panel hidden">
+      <div id="postsList"></div>
+      <button class="btn-ghost load-more hidden" id="btnLoadMorePosts">Aur load karein</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCHd2p__-IncXsdafaJgP7SRPJGXD_0P5o",
+  authDomain: "deen-64ba0.firebaseapp.com",
+  projectId: "deen-64ba0",
+  storageBucket: "deen-64ba0.firebasestorage.app",
+  messagingSenderId: "1021038611716",
+  appId: "1:1021038611716:web:ab24d3692481b6a4b29451"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const ADMIN_EMAIL = "sufynexsystems@gmail.com";
+
+const TIER_LABELS = { 0: 'None', 1: 'Normal', 2: 'Special', 3: 'Full Special' };
+
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtDate(ts){
+  try{ return ts.toDate().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); }
+  catch(e){ return ''; }
+}
+
+/* ---------------- Auth ---------------- */
+
+document.getElementById('btnLogin').addEventListener('click', async () => {
+  const errEl = document.getElementById('loginErr');
+  errEl.classList.add('hidden');
+  const email = document.getElementById('adminEmail').value.trim();
+  const pass = document.getElementById('adminPass').value;
+  if(email.toLowerCase() !== ADMIN_EMAIL){
+    errEl.textContent = 'Ye panel sirf admin account (' + ADMIN_EMAIL + ') se khulta hai.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  try{
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(e){
+    errEl.textContent = 'Login nahi ho saka: ' + (e.message || e.code);
+    errEl.classList.remove('hidden');
+  }
+});
+
+document.getElementById('btnLogout').addEventListener('click', () => auth.signOut());
+
+auth.onAuthStateChanged(user => {
+  if(user && user.email && user.email.toLowerCase() === ADMIN_EMAIL){
+    document.getElementById('loginBox').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    loadDashboard();
+  } else {
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('loginBox').classList.remove('hidden');
+    if(user) auth.signOut(); // signed in but not the admin — kick back out
+  }
+});
+
+/* ---------------- Tabs ---------------- */
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+    if(btn.dataset.tab === 'users' && !usersLoaded) loadUsers();
+    if(btn.dataset.tab === 'reports' && !reportsLoaded) loadReports();
+    if(btn.dataset.tab === 'posts' && !postsLoaded) loadAllPosts();
+  });
+});
+
+/* ---------------- Dashboard ---------------- */
+
+async function getCount(query){
+  try{
+    const snap = await query.count().get();
+    return snap.data().count;
+  } catch(e){
+    // Older SDK fallback — fetches full docs just to count them, only used if
+    // the count() aggregation API isn't available.
+    const snap = await query.get();
+    return snap.size;
+  }
+}
+
+async function loadDashboard(){
+  document.getElementById('btnRefreshDashboard').textContent = '⏳ Loading...';
+  try{
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const todayTs = firebase.firestore.Timestamp.fromDate(todayStart);
+    const [usersCount, postsCount, todayCount, reportsCount] = await Promise.all([
+      getCount(db.collection('users')),
+      getCount(db.collection('posts')),
+      getCount(db.collection('posts').where('createdAt','>=', todayTs)),
+      getCount(db.collection('reports')),
+    ]);
+    document.getElementById('statUsers').textContent = usersCount;
+    document.getElementById('statPosts').textContent = postsCount;
+    document.getElementById('statToday').textContent = todayCount;
+    document.getElementById('statReports').textContent = reportsCount;
+  } catch(e){
+    toast('Dashboard load nahi ho saka: ' + (e.message||e.code));
+  }
+  document.getElementById('btnRefreshDashboard').textContent = '🔄 Refresh';
+}
+document.getElementById('btnRefreshDashboard').addEventListener('click', loadDashboard);
+
+/* ---------------- Users ---------------- */
+
+let usersLoaded = false, lastUserDoc = null;
+
+function userRowHtml(uid, u){
+  const name = u.nickname || u.username || 'User';
+  const initial = (name[0]||'U').toUpperCase();
+  const avatar = u.photoURL ? `<img src="${u.photoURL}">` : initial;
+  return `<div class="card" data-uid="${uid}">
+    <div class="row">
+      <div class="avatar">${avatar}</div>
+      <div style="flex:1;">
+        <div class="uname">${escapeHtml(name)} ${u.banned ? '<span class="badge badge-banned">BANNED</span>' : ''}</div>
+        <div class="usub">@${escapeHtml(u.username||'user')} · joined ${fmtDate(u.createdAt)}</div>
+      </div>
+    </div>
+    <div class="actions-row">
+      <select class="tier-select" data-uid="${uid}">
+        ${Object.entries(TIER_LABELS).map(([v,l]) => `<option value="${v}" ${((u.verifiedTier||0)==v)?'selected':''}>${l}</option>`).join('')}
+      </select>
+      <button class="btn-warn btn-ban" data-uid="${uid}" data-banned="${!!u.banned}">${u.banned ? 'Unban' : 'Ban'}</button>
+      <button class="btn-ghost btn-view-posts" data-uid="${uid}" data-name="${escapeHtml(name)}">Posts Dekhein</button>
+      <button class="btn-danger btn-delete-user" data-uid="${uid}" data-name="${escapeHtml(name)}">Delete User</button>
+    </div>
+    <div class="user-posts-panel hidden" id="posts-${uid}"></div>
+  </div>`;
+}
+
+async function loadUsers(reset){
+  if(reset){ lastUserDoc = null; document.getElementById('usersList').innerHTML = ''; }
+  usersLoaded = true;
+  let q = db.collection('users').orderBy('createdAt','desc').limit(20);
+  if(lastUserDoc) q = q.startAfter(lastUserDoc);
+  const snap = await q.get();
+  if(snap.empty && !lastUserDoc){
+    document.getElementById('usersList').innerHTML = '<div class="empty-note">Koi users nahi mile.</div>';
+    return;
+  }
+  lastUserDoc = snap.docs[snap.docs.length-1];
+  document.getElementById('usersList').insertAdjacentHTML('beforeend', snap.docs.map(d => userRowHtml(d.id, d.data())).join(''));
+  document.getElementById('btnLoadMoreUsers').classList.toggle('hidden', snap.docs.length < 20);
+  bindUserRowEvents();
+}
+document.getElementById('btnLoadMoreUsers').addEventListener('click', () => loadUsers(false));
+
+document.getElementById('btnUserSearch').addEventListener('click', async () => {
+  const term = document.getElementById('userSearchInput').value.trim().toLowerCase();
+  const list = document.getElementById('usersList');
+  document.getElementById('btnLoadMoreUsers').classList.add('hidden');
+  if(!term){ loadUsers(true); return; }
+  list.innerHTML = '<div class="empty-note">Search ho raha hai...</div>';
+  try{
+    const snap = await db.collection('users').orderBy('usernameLower').startAt(term).endAt(term+'\uf8ff').limit(20).get();
+    if(snap.empty){ list.innerHTML = '<div class="empty-note">Koi user nahi mila.</div>'; return; }
+    list.innerHTML = snap.docs.map(d => userRowHtml(d.id, d.data())).join('');
+    bindUserRowEvents();
+  } catch(e){ list.innerHTML = `<div class="empty-note">Search nahi ho saka: ${e.message}</div>`; }
+});
+
+function bindUserRowEvents(){
+  document.querySelectorAll('.tier-select').forEach(sel => {
+    sel.onchange = async () => {
+      try{
+        await db.collection('users').doc(sel.dataset.uid).set({ verifiedTier: Number(sel.value) }, { merge:true });
+        toast('Tier update ho gaya ✓');
+      } catch(e){ toast('Nahi ho saka: ' + e.message); }
+    };
+  });
+  document.querySelectorAll('.btn-ban').forEach(btn => {
+    btn.onclick = async () => {
+      const nowBanned = !(btn.dataset.banned === 'true');
+      try{
+        await db.collection('users').doc(btn.dataset.uid).set({ banned: nowBanned }, { merge:true });
+        toast(nowBanned ? 'User ban ho gaya' : 'Unban ho gaya');
+        btn.dataset.banned = String(nowBanned);
+        btn.textContent = nowBanned ? 'Unban' : 'Ban';
+        const badge = btn.closest('.card').querySelector('.badge-banned');
+        if(nowBanned && !badge){
+          btn.closest('.card').querySelector('.uname').insertAdjacentHTML('beforeend', ' <span class="badge badge-banned">BANNED</span>');
+        } else if(!nowBanned && badge){ badge.remove(); }
+      } catch(e){ toast('Nahi ho saka: ' + e.message); }
+    };
+  });
+  document.querySelectorAll('.btn-view-posts').forEach(btn => {
+    btn.onclick = () => togglePostsPanel(btn.dataset.uid, btn.dataset.name);
+  });
+  document.querySelectorAll('.btn-delete-user').forEach(btn => {
+    btn.onclick = () => deleteUser(btn.dataset.uid, btn.dataset.name);
+  });
+}
+
+async function togglePostsPanel(uid, name){
+  const panel = document.getElementById('posts-' + uid);
+  if(!panel.classList.contains('hidden')){ panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+  panel.innerHTML = '<div class="empty-note">Loading...</div>';
+  try{
+    const snap = await db.collection('posts').where('uid','==',uid).limit(50).get();
+    if(snap.empty){ panel.innerHTML = '<div class="empty-note">Is user ki koi post nahi hai.</div>'; return; }
+    const docs = snap.docs.sort((a,b) => (b.data().createdAt?.toMillis?.()||0) - (a.data().createdAt?.toMillis?.()||0));
+    panel.innerHTML = docs.map(d => postCardHtml(d.id, d.data())).join('');
+    bindPostCardEvents(panel);
+  } catch(e){ panel.innerHTML = `<div class="empty-note">Load nahi ho saka: ${e.message}</div>`; }
+}
+
+async function deleteUser(uid, name){
+  if(!confirm(`"${name}" ka account, uski sari posts, comments, likes, aur follows permanently delete kar dein?`)) return;
+  if(!confirm('Pakka? Ye wapas nahi ho sakta.')) return;
+  try{
+    const userDoc = await db.collection('users').doc(uid).get();
+    const username = userDoc.exists ? (userDoc.data().username || '').toLowerCase() : null;
+
+    const wipeWhere = async (col, field) => {
+      const snap = await db.collection(col).where(field,'==',uid).get();
+      await Promise.all(snap.docs.map(d => d.ref.delete().catch(()=>{})));
+    };
+
+    // Delete this user's posts (and each post's comments subcollection)
+    const postsSnap = await db.collection('posts').where('uid','==',uid).get();
+    for(const p of postsSnap.docs){
+      const commentsSnap = await p.ref.collection('comments').get();
+      await Promise.all(commentsSnap.docs.map(c => c.ref.delete().catch(()=>{})));
+      await p.ref.delete().catch(()=>{});
+    }
+    await wipeWhere('likes','uid');
+    await wipeWhere('commentLikes','uid');
+    await wipeWhere('follows','follower');
+    await wipeWhere('follows','following');
+    try{ // this user's comments on OTHER people's posts (needs a collectionGroup index — skip quietly if missing)
+      const cgSnap = await db.collectionGroup('comments').where('uid','==',uid).get();
+      await Promise.all(cgSnap.docs.map(c => c.ref.delete().catch(()=>{})));
+    } catch(e){ /* index not set up — not critical */ }
+
+    await db.collection('prayerLogs').doc(uid).delete().catch(()=>{});
+    await db.collection('dhikrLogs').doc(uid).delete().catch(()=>{});
+    if(username) await db.collection('usernames').doc(username).delete().catch(()=>{});
+    await db.collection('users').doc(uid).delete();
+
+    document.querySelector(`.card[data-uid="${uid}"]`)?.remove();
+    toast('User delete ho gaya. (Note: Auth account alag se Firebase Console → Authentication se delete karna hoga.)');
+  } catch(e){ toast('Delete nahi ho saka: ' + e.message); }
+}
+
+/* ---------------- Shared post card (used in Users→Posts, Reports, All Posts) ---------------- */
+
+function postCardHtml(id, p){
+  const name = p.nickname || p.username || 'User';
+  return `<div class="card" data-post-id="${id}">
+    <div class="uname">${escapeHtml(name)} <span class="usub">· ${fmtDate(p.createdAt)}</span></div>
+    <div class="post-preview">
+      ${p.title ? `<b>${escapeHtml(p.title)}</b><br>` : ''}
+      ${escapeHtml((p.text||'').slice(0,180))}
+      ${p.imageURL ? `<img src="${p.imageURL}">` : ''}
+    </div>
+    <div class="actions-row">
+      <button class="btn-danger btn-delete-post" data-id="${id}">Post Delete Karein</button>
+    </div>
+  </div>`;
+}
+function bindPostCardEvents(container){
+  container.querySelectorAll('.btn-delete-post').forEach(btn => {
+    btn.onclick = async () => {
+      if(!confirm('Ye post delete kar dein?')) return;
+      try{
+        await db.collection('posts').doc(btn.dataset.id).delete();
+        btn.closest('.card').remove();
+        toast('Post delete ho gayi');
+      } catch(e){ toast('Nahi ho saka: ' + e.message); }
+    };
+  });
+}
+
+/* ---------------- Reports ---------------- */
+
+let reportsLoaded = false, lastReportDoc = null;
+
+async function loadReports(reset){
+  if(reset){ lastReportDoc = null; document.getElementById('reportsList').innerHTML = ''; }
+  reportsLoaded = true;
+  const list = document.getElementById('reportsList');
+  let q = db.collection('reports').orderBy('createdAt','desc').limit(15);
+  if(lastReportDoc) q = q.startAfter(lastReportDoc);
+  const snap = await q.get();
+  if(snap.empty && !lastReportDoc){ list.innerHTML = '<div class="empty-note">Koi report nahi hai. 🎉</div>'; return; }
+  lastReportDoc = snap.docs[snap.docs.length-1];
+
+  for(const doc of snap.docs){
+    const r = doc.data();
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.dataset.reportId = doc.id;
+    el.innerHTML = `<div class="uname">Reason: ${escapeHtml(r.reason||'—')}</div><div class="usub">Reported: ${fmtDate(r.createdAt)}</div><div class="post-preview" id="rpost-${doc.id}">Post load ho rahi hai...</div>
+      <div class="actions-row">
+        <button class="btn-danger" data-act="delpost" data-post="${r.postId}" data-report="${doc.id}">Post Delete Karein</button>
+        <button class="btn-warn" data-act="ban" data-uid="${r.reportedUid}" data-report="${doc.id}">User Ban Karein</button>
+        <button class="btn-ghost" data-act="dismiss" data-report="${doc.id}">Dismiss</button>
+      </div>`;
+    list.appendChild(el);
+    db.collection('posts').doc(r.postId).get().then(pd => {
+      const target = document.getElementById('rpost-' + doc.id);
+      if(!target) return;
+      target.innerHTML = pd.exists ? `${escapeHtml(pd.data().title||'')}<br>${escapeHtml((pd.data().text||'').slice(0,150))}` : '(Ye post pehle hi delete ho chuki hai)';
+    });
+  }
+  document.getElementById('btnLoadMoreReports').classList.toggle('hidden', snap.docs.length < 15);
+  bindReportEvents();
+}
+document.getElementById('btnLoadMoreReports').addEventListener('click', () => loadReports(false));
+
+function bindReportEvents(){
+  document.querySelectorAll('[data-act="delpost"]').forEach(btn => {
+    btn.onclick = async () => {
+      if(!confirm('Reported post delete kar dein?')) return;
+      try{ await db.collection('posts').doc(btn.dataset.post).delete().catch(()=>{}); toast('Post delete ho gayi'); }
+      catch(e){ toast('Nahi ho saka: ' + e.message); }
+    };
+  });
+  document.querySelectorAll('[data-act="ban"]').forEach(btn => {
+    btn.onclick = async () => {
+      if(!confirm('Is user ko ban kar dein?')) return;
+      try{ await db.collection('users').doc(btn.dataset.uid).set({ banned:true }, { merge:true }); toast('User ban ho gaya'); }
+      catch(e){ toast('Nahi ho saka: ' + e.message); }
+    };
+  });
+  document.querySelectorAll('[data-act="dismiss"]').forEach(btn => {
+    btn.onclick = async () => {
+      try{
+        await db.collection('reports').doc(btn.dataset.report).delete();
+        document.querySelector(`.card[data-report-id="${btn.dataset.report}"]`)?.remove();
+        toast('Report dismiss ho gaya');
+      } catch(e){ toast('Nahi ho saka: ' + e.message); }
+    };
+  });
+}
+
+/* ---------------- All Posts ---------------- */
+
+let postsLoaded = false, lastPostDoc = null;
+
+async function loadAllPosts(reset){
+  if(reset){ lastPostDoc = null; document.getElementById('postsList').innerHTML = ''; }
+  postsLoaded = true;
+  const list = document.getElementById('postsList');
+  let q = db.collection('posts').orderBy('createdAt','desc').limit(20);
+  if(lastPostDoc) q = q.startAfter(lastPostDoc);
+  const snap = await q.get();
+  if(snap.empty && !lastPostDoc){ list.innerHTML = '<div class="empty-note">Koi posts nahi hain.</div>'; return; }
+  lastPostDoc = snap.docs[snap.docs.length-1];
+  list.insertAdjacentHTML('beforeend', snap.docs.map(d => postCardHtml(d.id, d.data())).join(''));
+  document.getElementById('btnLoadMorePosts').classList.toggle('hidden', snap.docs.length < 20);
+  bindPostCardEvents(list);
+}
+document.getElementById('btnLoadMorePosts').addEventListener('click', () => loadAllPosts(false));
+</script>
+</body>
+</html>
