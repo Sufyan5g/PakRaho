@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ur-PK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Pak Raho — Namaz Timings, Duaein, Streak Tracker & Islamic Community</title>
+<meta name="description" content="Pak Raho: sahi Namaz waqt aur alerts, Jummah ke amaal, roz mara ki duaein, Namaz aur Daily amal streak tracker, aur ek Islamic community feed — sab ek app mein.">
+<meta name="keywords" content="namaz timings, prayer times pakistan, islamic app, dua app, streak tracker, jummah, azkar, muslim community app">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="./index.html">
+<meta property="og:title" content="Pak Raho — Namaz Timings & Islamic Community">
+<meta property="og:description" content="Namaz timings, alerts, duaein, streak tracker aur Islamic community feed.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="./icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Pak Raho — Namaz Timings & Islamic Community">
+<meta name="twitter:description" content="Namaz timings, alerts, duaein, streak tracker aur Islamic community feed.">
+<meta name="theme-color" content="#0B3D33">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="icons/icon-16.png" sizes="16x16" type="image/png">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Pak Raho",
+  "applicationCategory": "LifestyleApplication",
+  "operatingSystem": "Any (PWA)",
+  "description": "Namaz timings, alerts, duaein, streak tracker aur Islamic community feed.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "PKR" }
+}
+</script>
+</head>
+<body>
+
+<div id="splashScreen">
+  <img src="icons/icon-192.png" alt="Pak Raho" class="splash-logo">
+  <div class="splash-name">Pak Raho</div>
+</div>
+
+<div id="app">
+
+  <div id="pullRefreshIndicator"><div class="pr-spinner"></div></div>
+
+  <div class="app-header">
+    <div class="brand">
+      <div class="brand-mark">🕌</div>
+      <div class="brand-text">
+        <div class="title">Pak Raho</div>
+        <div class="sub">Namaz, Duaein aur Roz Mara ki Guidance</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="hijri-pill" id="hijriPill">--</div>
+      <div class="profile-btn" id="profileBtn">👤</div>
+    </div>
+  </div>
+
+  <div id="installBanner" class="install-banner hidden">
+    <span>📲 Pak Raho ko app ki tarah install karein</span>
+    <button id="btnInstallApp">Install</button>
+    <button id="btnDismissInstall">✕</button>
+  </div>
+
+  <div id="offlineBanner" class="offline-banner hidden">📡 Offline — purana data dikhaya ja raha hai <button id="btnRetryOnline">Retry</button></div>
+
+  <!-- QIBLA VIEW -->
+  <div class="view" id="viewQibla">
+    <button class="btn secondary" id="btnCloseQibla" style="margin-bottom:16px;">← Wapas</button>
+    <div class="qibla-card">
+      <div class="qibla-compass-wrap">
+        <div class="qibla-compass-ring">
+          <div class="qibla-kaaba-icon" id="qiblaNeedle">🕋</div>
+        </div>
+      </div>
+      <div class="qibla-status" id="qiblaStatus">Location aur compass permission chahiye...</div>
+      <button class="btn" id="btnEnableQibla" style="margin-top:16px;">Qibla Direction Dikhayein</button>
+    </div>
+    <div class="note-box">Apne phone ko seedha (flat) pakrein aur ghumayein — Kaaba wala icon Qibla ki taraf ishara karega. Kuch phones/laptops mein compass sensor support nahi hota, us surat mein sirf degree/bearing dikhaya jayega.</div>
+  </div>
+
+  <!-- HOME VIEW -->
+  <div class="view active" id="viewHome">
+    <div class="ramadan-banner">🌙 Ramadan Mode — Coming Soon</div>
+
+    <div class="quick-actions-row">
+      <button class="quick-action-btn" id="btnOpenQibla"><span class="qa-icon">🧭</span>Qibla Direction</button>
+      <button class="quick-action-btn" id="btnInviteFriends"><span class="qa-icon">📨</span>Invite Friends</button>
+    </div>
+
+    <div class="arc-card">
+      <div class="arc-top">
+        <div>
+          <div class="next-label">Agli Namaz</div>
+          <div class="next-name" id="nextName">—</div>
+          <div class="countdown" id="countdownText"><span class="mini-spinner"></span> Load ho raha hai…</div>
+        </div>
+        <div class="location-pill" id="locationPill">📍 —</div>
+      </div>
+      <div class="arc-svg" id="arcSvg"></div>
+    </div>
+
+    <div class="section-label">Aaj ki Namaz Timings</div>
+    <div class="prayer-list" id="prayerList">
+      <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+      <div class="skeleton-row"></div><div class="skeleton-row"></div>
+    </div>
+
+    <div class="dua-card" id="dailyAmalCard" style="margin-top:20px;"></div>
+
+    <div class="note-box">
+      Timings automatic GPS location se calculate ki jati hain (Karachi/Hanafi method). Hijri date approximate hai — Ramzan/Eid ke liye local moon-sighting announcement ko hi asal maanein.
+    </div>
+  </div>
+
+  <!-- FAIDA VIEW -->
+  <div class="view" id="viewFaida">
+    <div class="section-label">Har Namaz ka Faida</div>
+    <div id="faidaList"></div>
+    <div class="section-label">Azkar</div>
+    <div class="faida-card" id="tasbeehCard" style="margin-bottom:12px;"></div>
+    <div class="note-box">Ye general Islamic guidance hai. Tafseeli masail ke liye apne qareebi mufti ya scholar se rabta karein.</div>
+  </div>
+
+  <!-- JUMMAH VIEW -->
+  <div class="view" id="viewJummah">
+    <div class="jummah-hero">
+      <div class="ar-big">يَوْمُ الْجُمُعَةِ</div>
+      <div class="desc">Jummah Mubarak — Hafte ka sab se ba-fazilat din</div>
+    </div>
+    <div class="section-label">Jummah ke Din ke Amaal</div>
+    <div id="jummahList"></div>
+    <div class="note-box">Ye maloomaat aam tor par mash-hoor amaal par mabni hain. Sahi tarteeb aur tafseel ke liye apne scholar se tasdeeq zaroor karein.</div>
+  </div>
+
+  <!-- DUAS VIEW -->
+  <div class="view" id="viewDuas">
+    <div class="hadith-card" id="hadithCard"></div>
+    <div class="section-label">Roz Mara ki Duaein</div>
+    <div id="duaList"></div>
+  </div>
+
+  <!-- STREAK VIEW -->
+  <div class="view" id="viewStreak">
+    <div class="streak-top-row">
+      <div class="streak-tabs">
+        <button class="stab active" data-streak="namaz">🔥 Namaz</button>
+        <button class="stab" data-streak="daily">📿 Daily</button>
+      </div>
+      <button class="lb-btn" id="btnOpenLeaderboard">🏆 Leaderboard</button>
+      <button class="icon-btn" id="btnOpenStreakPrivacy">⚙️</button>
+    </div>
+
+    <!-- STREAK PRIVACY SHEET -->
+    <div class="sheet-overlay hidden" id="streakPrivacySheet">
+      <div class="sheet-card">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">Leaderboard Privacy</div>
+        <div class="setting-row">
+          <div><div class="setting-label">Namaz Streak Hide Karein</div><div class="setting-sub">Profile aur Leaderboard dono jagah se hide hogi</div></div>
+          <div class="toggle" id="toggleHideNamazStreak"><div class="dot"></div></div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Daily Streak Hide Karein</div><div class="setting-sub">Profile aur Leaderboard dono jagah se hide hogi</div></div>
+          <div class="toggle" id="toggleHideDailyStreak"><div class="dot"></div></div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Total Namaz Count Hide Karein</div><div class="setting-sub">Leaderboard mein "X Namaz total" wali line hide hogi</div></div>
+          <div class="toggle" id="toggleHideTotalNamaz"><div class="dot"></div></div>
+        </div>
+        <button class="btn secondary" id="btnCloseStreakPrivacy" style="margin-top:14px;">Band Karein</button>
+      </div>
+    </div>
+
+    <!-- Namaz streak pane -->
+    <div class="streak-pane active" id="streakPaneNamaz">
+      <div class="streak-hero">
+        <div class="streak-flame" id="streakFlame">🔥</div>
+        <div class="streak-count" id="streakCount">0</div>
+        <div class="desc">Din ka Streak — jab paanchon Namaz mark ho jayein</div>
+        <div class="streak-best" id="streakBest"></div>
+        <button class="share-btn" id="btnShareNamaz">📤 Streak Share Karein</button>
+      </div>
+
+      <div class="section-label">Milestones</div>
+      <div class="badge-row" id="badgeRow"></div>
+
+      <div class="section-label">Is Hafte <span class="hint-inline">(purane dinon ko sirf dekh sakte hain)</span></div>
+      <div class="week-grid" id="weekGrid"></div>
+
+      <div class="section-label">Namaz Mark Karein</div>
+      <p class="quick-check-hint">Sirf Aaj aur Kal ki Namazein yahan se mark ki ja sakti hain.</p>
+      <div id="streakDays"></div>
+
+      <div id="honestyNote"></div>
+    </div>
+
+    <!-- Daily streak pane -->
+    <div class="streak-pane" id="streakPaneDaily">
+      <div class="streak-hero daily">
+        <div class="streak-flame" id="dailyFlame">📿</div>
+        <div class="streak-count" id="dailyCount">0</div>
+        <div class="desc">Roz ka Amal Streak — Zikr, Tilawat ya koi bhi neki jo aap roz karna chahte hain</div>
+        <div class="streak-best" id="dailyBest"></div>
+        <button class="share-btn" id="btnShareDaily">📤 Streak Share Karein</button>
+      </div>
+
+      <button class="btn" id="btnMarkDaily" style="margin-top:16px;">Aaj ka Amal Mark Karein ✓</button>
+
+      <div class="section-label">Milestones</div>
+      <div class="badge-row" id="dailyBadgeRow"></div>
+
+      <div class="section-label">Is Hafte</div>
+      <div class="week-grid" id="dailyWeekGrid"></div>
+
+      <div class="note-box">Ye ek azaad (independent) streak hai — kisi bhi roz mara ke nek amal (Quran parhna, zikr, sadqa, waldain ki khidmat) ko track karne ke liye. Namaz streak se alag hai.</div>
+    </div>
+  </div>
+
+  <!-- DAY DETAIL SHEET (streak week-grid click) -->
+  <div class="sheet-overlay hidden" id="dayDetailSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="dayDetailTitle">Namaz Tafseel</div>
+      <div id="dayDetailCount" class="day-detail-count"></div>
+      <div id="dayDetailRows"></div>
+      <button class="btn secondary" id="btnCloseDayDetail" style="margin-top:14px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD SHEET -->
+  <div class="sheet-overlay hidden" id="leaderboardSheet">
+    <div class="sheet-card sheet-tall">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">🏆 Leaderboard</div>
+      <div class="lb-tabs">
+        <button class="lbtab active" data-lb="namaz">🔥 Namaz</button>
+        <button class="lbtab" data-lb="daily">📿 Daily</button>
+      </div>
+      <div id="leaderboardList"><div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div></div>
+      <button class="btn secondary" id="btnCloseLeaderboard" style="margin-top:12px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- SHARE PREVIEW SHEET -->
+  <div class="sheet-overlay hidden" id="sharePreviewSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Streak Share Karein</div>
+      <div class="share-canvas-wrap"><canvas id="shareCanvas" width="600" height="750"></canvas></div>
+      <button class="btn" id="btnSharePost">📱 Feed Par Post Karein</button>
+      <button class="btn secondary" id="btnShareExternal" style="margin-top:8px;">📤 WhatsApp / Facebook Etc.</button>
+      <button class="btn secondary" id="btnCloseSharePreview" style="margin-top:8px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- FEED VIEW -->
+  <div class="view" id="viewFeed">
+    <div class="feed-header-row">
+      <div class="feed-tabs">
+        <button class="ftab active" data-mode="all">Sab</button>
+        <button class="ftab" data-mode="following">Following</button>
+        <button class="ftab" data-mode="images">🖼️ Images</button>
+      </div>
+      <button class="icon-btn" id="btnOpenSearch">🔍</button>
+    </div>
+
+    <div id="guestNote" class="note-box" style="display:none; margin-top:10px;">👀 Guest mode — post/like/comment/follow ke liye login karein</div>
+
+    <div id="feedList" style="margin-top:14px;"></div>
+
+    <button class="fab" id="fabAdd">+</button>
+  </div>
+
+  <!-- SEARCH SHEET -->
+  <div class="sheet-overlay hidden" id="searchSheet">
+    <div class="sheet-card sheet-tall">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Search</div>
+      <input type="text" class="text-input" id="searchInput" placeholder="Username, #hashtag ya post ke andar koi bhi lafz search karein...">
+      <div id="searchResults"></div>
+      <button class="btn secondary" id="btnCloseSearch" style="margin-top:10px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- COMPOSE SHEET -->
+  <div class="sheet-overlay hidden" id="composeSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <div id="composeLoggedIn">
+        <div class="sheet-title">Naya Post</div>
+
+        <div class="compose-type-chooser" id="composeTypeChooser">
+          <button class="ctype-btn" data-ctype="text"><span class="ic">✍️</span>Post</button>
+          <button class="ctype-btn" data-ctype="image"><span class="ic">🖼️</span>Image</button>
+          <button class="ctype-btn" data-ctype="video"><span class="ic">🎥</span>Video</button>
+        </div>
+
+        <div id="composeTextBlock" class="hidden">
+          <textarea id="postText" class="post-input" placeholder="Kuch likhein... (#hashtag bhi likh sakte hain)" rows="6"></textarea>
+          <div class="auth-error" id="postError"></div>
+          <button class="btn" id="btnSubmitPost">Post Karein</button>
+        </div>
+
+        <div id="composeImageBlock" class="hidden">
+          <div class="pic-post-preview" id="picPostPreview">📷<span>Gallery se Picture Chunein</span></div>
+          <input type="file" id="picPostInput" accept="image/*" style="display:none;">
+          <input type="text" class="text-input" id="picPostTitle" placeholder="Title" maxlength="80">
+          <textarea id="picPostDesc" class="post-input" placeholder="Description... (#hashtag bhi likh sakte hain)" rows="3"></textarea>
+          <label class="kids-check-row"><input type="checkbox" id="picPostKids"> 👶 Made for Kids</label>
+          <div class="auth-error" id="picPostError"></div>
+          <button class="btn" id="btnSubmitPicPost">Post Karein</button>
+        </div>
+
+        <div id="composeVideoBlock" class="hidden">
+          <div class="empty-cta"><div class="ic">🎥</div><p>Video posts abhi <strong>Coming Soon</strong> hain — Firebase Storage/Blaze setup hone ke baad enable hoga. Filhaal Image ya Post use karein.</p></div>
+        </div>
+
+        <button class="btn secondary" id="btnCancelPost" style="margin-top:8px;">Band Karein</button>
+      </div>
+      <div id="composeLoggedOut" style="display:none; text-align:center;">
+        <div class="sheet-title">Post karne ke liye login karein</div>
+        <p style="color:var(--text-muted); font-size:13px; margin:10px 0 16px;">Guest bhi feed dekh sakte hain, lekin post, like, comment aur follow karne ke liye account chahiye.</p>
+        <button class="btn" id="btnGoLogin">Login / Sign Up</button>
+        <button class="btn secondary" id="btnCancelPost2" style="margin-top:8px;">Band Karein</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMENTS SHEET -->
+  <div class="sheet-overlay hidden" id="commentsSheet">
+    <div class="sheet-card sheet-tall">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Comments</div>
+      <div id="commentsList" class="comments-list"></div>
+      <div id="replyingToBar" class="replying-to-bar hidden">
+        Reply kar rahe hain <span id="replyingToName"></span> ko <button id="btnCancelReply">✕</button>
+      </div>
+      <div id="commentComposeLoggedIn" class="comment-compose">
+        <input type="text" id="commentInput" class="text-input" style="margin:0;" placeholder="Comment likhein...">
+        <button class="btn" id="btnSendComment" style="width:auto; padding:12px 18px;">➤</button>
+      </div>
+      <div id="commentComposeLoggedOut" style="display:none; text-align:center; padding-top:10px;">
+        <button class="btn" id="btnCommentLogin">Comment karne ke liye Login karein</button>
+      </div>
+      <button class="btn secondary" id="btnCloseComments" style="margin-top:10px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- REPORT SHEET -->
+  <div class="sheet-overlay hidden" id="reportSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Report Karein</div>
+      <div class="report-reasons" id="reportReasons">
+        <button class="report-reason-btn" data-reason="Nazeba zaban">Nazeba zaban</button>
+        <button class="report-reason-btn" data-reason="Spam">Spam</button>
+        <button class="report-reason-btn" data-reason="Ghalat maloomat">Ghalat maloomat</button>
+        <button class="report-reason-btn" data-reason="Harassment">Harassment</button>
+        <button class="report-reason-btn" data-reason="Kuch aur">Kuch aur</button>
+      </div>
+      <button class="btn secondary" id="btnCloseReport" style="margin-top:10px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- POST ACTIONS SHEET (⋮ menu) -->
+  <div class="sheet-overlay hidden" id="postMenuSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <button class="menu-item" id="menuReportPost">🚩 Report Post</button>
+      <button class="menu-item" id="menuBlockUser">🚫 Is User ko Block Karein</button>
+      <button class="menu-item danger" id="menuDeletePost" style="display:none;">🗑️ Post Delete Karein</button>
+      <button class="btn secondary" id="btnClosePostMenu" style="margin-top:8px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- AUTH VIEW -->
+  <div class="view" id="viewAuth">
+    <div class="jummah-hero">
+      <div style="font-size:34px;">🕌</div>
+      <div class="desc" style="font-size:15px; margin-top:6px;">Pak Raho Community</div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="atab active" data-form="login">Login</button>
+      <button class="atab" data-form="signup">Sign Up</button>
+    </div>
+
+    <div id="loginForm">
+      <input type="email" class="text-input" id="loginEmail" placeholder="Email">
+      <input type="password" class="text-input" id="loginPassword" placeholder="Password">
+      <button class="btn" id="btnLogin"><span class="btn-label">Login</span></button>
+      <div class="auth-error" id="loginError"></div>
+    </div>
+
+    <div id="signupForm" style="display:none;">
+      <div class="wizard-steps" id="wizardSteps">
+        <div class="wstep active" data-step="1">1</div><div class="wline"></div>
+        <div class="wstep" data-step="2">2</div><div class="wline"></div>
+        <div class="wstep" data-step="3">3</div><div class="wline"></div>
+        <div class="wstep" data-step="4">4</div><div class="wline"></div>
+        <div class="wstep" data-step="5">5</div>
+      </div>
+
+      <div class="wizard-pane active" id="wpane1">
+        <input type="email" class="text-input" id="signupEmail" placeholder="Email">
+        <input type="password" class="text-input" id="signupPassword" placeholder="Password (kam se kam 6 characters)">
+        <button class="btn" id="btnWizardNext1">Aage Barhein</button>
+        <div class="auth-error" id="wError1"></div>
+      </div>
+
+      <div class="wizard-pane" id="wpane2">
+        <p class="wizard-hint">Apna username choose karein — ye 30 din baad hi dobara change ho sakega.</p>
+        <div class="username-check-wrap">
+          <input type="text" class="text-input" id="signupUsername" style="margin:0;" placeholder="Username">
+          <div class="uname-status" id="unameStatus"></div>
+        </div>
+        <div class="auth-error" id="wError2"></div>
+        <button class="btn" id="btnWizardNext2" disabled>Aage Barhein</button>
+      </div>
+
+      <div class="wizard-pane" id="wpane3">
+        <p class="wizard-hint">Apna nickname (display name) likhein — ye doosron ko dikhega.</p>
+        <input type="text" class="text-input" id="signupNickname" placeholder="Nickname">
+        <div class="auth-error" id="wError3"></div>
+        <button class="btn" id="btnWizardNext3">Aage Barhein</button>
+      </div>
+
+      <div class="wizard-pane" id="wpane4">
+        <p class="wizard-hint">Profile picture lagayein (ya skip karein).</p>
+        <div class="pic-upload-wrap">
+          <div class="pic-preview" id="wizardPicPreview">➕</div>
+          <input type="file" id="wizardPicInput" accept="image/*" style="display:none;">
+        </div>
+        <button class="btn secondary" id="btnPickPic" style="margin-top:14px;">Picture Chunein</button>
+        <div class="auth-error" id="wError4"></div>
+        <div class="wizard-btn-row">
+          <button class="btn secondary" id="btnSkipPic">Skip</button>
+          <button class="btn" id="btnWizardNext4">Aage Barhein</button>
+        </div>
+      </div>
+
+      <div class="wizard-pane" id="wpane5">
+        <p class="wizard-hint">Choti si bio likhein (optional).</p>
+        <textarea id="signupBio" class="post-input" rows="3" placeholder="Apne baare mein kuch likhein..." maxlength="120"></textarea>
+        <div class="auth-error" id="wError5"></div>
+        <button class="btn" id="btnFinishSignup"><span class="btn-label">Done ✓</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- POST IMAGE CROP SHEET -->
+  <div class="sheet-overlay hidden" id="postCropSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Thumbnail Position Set Karein</div>
+      <div class="post-crop-stage" id="postCropStage">
+        <canvas id="postCropCanvas" width="320" height="240"></canvas>
+      </div>
+      <input type="range" id="postCropZoom" min="100" max="300" value="100" class="zoom-slider">
+      <div class="crop-hint">Ye sirf feed thumbnail ki framing set karta hai — pori original picture save hogi, post open karne par puri image dikhegi.</div>
+      <button class="btn" id="btnPostCropConfirm">Confirm ✓</button>
+      <button class="btn secondary" id="btnPostCropCancel" style="margin-top:8px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- CROP SHEET (WhatsApp-style) -->
+  <div class="sheet-overlay hidden" id="cropSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Picture Adjust Karein</div>
+      <div class="crop-stage" id="cropStage">
+        <canvas id="cropCanvas" width="320" height="320"></canvas>
+      </div>
+      <input type="range" id="cropZoom" min="100" max="300" value="100" class="zoom-slider">
+      <div class="crop-hint">Ghumane/move karne ke liye picture ko drag karein</div>
+      <button class="btn" id="btnCropConfirm">Confirm ✓</button>
+      <button class="btn secondary" id="btnCropCancel" style="margin-top:8px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- PROFILE VIEW -->
+  <div class="view" id="viewProfile">
+    <div id="profileContent"></div>
+  </div>
+
+  <!-- EDIT PROFILE SHEET -->
+  <div class="sheet-overlay hidden" id="editProfileSheet">
+    <div class="sheet-card sheet-tall">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Profile Edit Karein</div>
+      <div class="pic-upload-wrap">
+        <div class="pic-preview" id="editPicPreview">➕</div>
+        <input type="file" id="editPicInput" accept="image/*" style="display:none;">
+      </div>
+      <button class="btn secondary" id="btnEditPickPic" style="margin-top:12px;">Picture Change Karein</button>
+      <input type="text" class="text-input" id="editNickname" placeholder="Nickname" style="margin-top:14px;">
+      <textarea id="editBio" class="post-input" rows="3" placeholder="Bio" maxlength="120"></textarea>
+      <div class="auth-error" id="editProfileError"></div>
+      <button class="btn" id="btnSaveProfile"><span class="btn-label">Save Karein</span></button>
+      <button class="btn secondary" id="btnCancelEditProfile" style="margin-top:8px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS SHEET -->
+  <div class="sheet-overlay hidden" id="settingsSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Settings</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Light Theme</div><div class="setting-sub">Halki (white) theme use karein</div></div>
+        <div class="toggle" id="toggleLightTheme"><div class="dot"></div></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Text Size</div><div class="setting-sub">App ka size chota/bada karein</div></div>
+        <div class="text-size-controls">
+          <button id="btnTextSizeDown" style="width:auto; padding:6px 12px;">A-</button>
+          <button id="btnTextSizeUp" style="width:auto; padding:6px 12px;">A+</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Following List Hide Karein</div><div class="setting-sub">Doosre aapki following list nahi dekh sakenge</div></div>
+        <div class="toggle" id="toggleHideFollowing"><div class="dot"></div></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Streak Privacy</div><div class="setting-sub">Namaz/Daily streak hide karne ka option Streak page pe ⚙️ button mein hai</div></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Blocked Users</div><div class="setting-sub" id="blockedCountText">0 users blocked</div></div>
+        <button class="btn secondary" id="btnManageBlocked" style="width:auto; padding:8px 14px; margin-top:0;">Manage</button>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">App Install Karein</div><div class="setting-sub" id="installSettingSub">Home screen pe asli app ki tarah install karein — Chrome tab jaisa nahi khulega</div></div>
+        <button class="btn secondary" id="btnInstallFromSettings" style="width:auto; padding:8px 14px; margin-top:0;">Install</button>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">App Reset Karein</div><div class="setting-sub">Purana data delete karke app ko bilkul nayi/fresh state mein le aayein</div></div>
+        <button class="btn secondary" id="btnResetApp" style="width:auto; padding:8px 14px; margin-top:0; color:#E15C5C; border-color:rgba(225,92,92,0.4);">Reset</button>
+      </div>
+      <button class="btn secondary" id="btnCloseSettings" style="margin-top:16px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- RESET APP CONFIRM SHEET -->
+  <div class="sheet-overlay hidden" id="resetConfirmSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Pura App Reset Karein?</div>
+      <p style="color:var(--text-muted); font-size:13px; line-height:1.6; margin-bottom:16px; text-align:center;">
+        Ye aapki saari posts, likes, comments, follows, aur namaz/daily streak history hamesha ke liye delete kar dega, phir aap logout ho jayenge aur app dobara nayi (fresh) state mein khulega. Ye wapis nahi ho sakta.
+      </p>
+      <div class="auth-error" id="resetConfirmError"></div>
+      <button class="btn" id="btnConfirmReset" style="background:#E15C5C;">Haan, Sab Kuch Delete Karein</button>
+      <button class="btn secondary" id="btnCancelReset" style="margin-top:8px;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- BLOCKED USERS SHEET -->
+  <div class="sheet-overlay hidden" id="blockedSheet">
+    <div class="sheet-card sheet-tall">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Blocked Users</div>
+      <div id="blockedList"></div>
+      <button class="btn secondary" id="btnCloseBlocked" style="margin-top:10px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <button class="nav-btn active" data-view="viewHome"><span class="ic">🏠</span>Home</button>
+    <button class="nav-btn" data-view="viewFaida"><span class="ic">📖</span>Faida</button>
+    <button class="nav-btn" data-view="viewJummah"><span class="ic">🕋</span>Jummah</button>
+    <button class="nav-btn" data-view="viewDuas"><span class="ic">🤲</span>Duaein</button>
+    <button class="nav-btn" data-view="viewStreak"><span class="ic">🔥</span>Streak</button>
+    <button class="nav-btn" data-view="viewFeed"><span class="ic">💬</span>Feed</button>
+  </div>
+
+  <!-- INVITE FRIENDS SHEET -->
+  <div class="sheet-overlay hidden" id="inviteSheet">
+    <div class="sheet-card">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Friends Ko Invite Karein</div>
+      <button class="btn" id="btnInviteShare">📨 Share Karein</button>
+      <button class="btn" id="btnInviteWhatsapp" style="margin-top:10px; background:linear-gradient(160deg,#25D366,#1DA851); color:#fff;">💬 WhatsApp Pe Bhejein</button>
+      <button class="btn secondary" id="btnInviteQR" style="margin-top:10px;">▦ QR Code Dikhayein</button>
+      <button class="btn secondary" id="btnCloseInvite" style="margin-top:14px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- QR CODE SHEET -->
+  <div class="sheet-overlay hidden" id="qrSheet">
+    <div class="sheet-card" style="text-align:center;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Scan Karke Install Karein</div>
+      <img id="qrCodeImg" src="" alt="QR Code" style="width:220px; height:220px; border-radius:12px; background:#fff; padding:10px;">
+      <div class="note-box" style="margin-top:12px;">Ye QR code print karke mosque ya kisi bhi jagah laga sakte hain — scan karte hi app khul jayegi.</div>
+      <button class="btn secondary" id="btnCloseQR" style="margin-top:14px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- ONBOARDING (first launch only) -->
+  <div class="overlay hidden" id="onboardingOverlay">
+    <div class="overlay-card onboarding-card">
+      <div class="onb-slide active" data-slide="0">
+        <div class="onb-icon">🕌</div>
+        <div class="onb-title">Namaz Waqt Pe</div>
+        <div class="onb-text">Roz ki 5 namazon ke sahi waqt, alerts, aur Qibla direction — sab ek jagah.</div>
+      </div>
+      <div class="onb-slide" data-slide="1">
+        <div class="onb-icon">🔥</div>
+        <div class="onb-title">Apna Streak Banayein</div>
+        <div class="onb-text">Har namaz mark karein, apni consistency dekhein, aur khud ko motivate rakhein.</div>
+      </div>
+      <div class="onb-slide" data-slide="2">
+        <div class="onb-icon">🤝</div>
+        <div class="onb-title">Community Ke Sath Judein</div>
+        <div class="onb-text">Duaein, posts share karein, aur doosre logon ke sath apna safar share karein.</div>
+      </div>
+      <div class="onb-dots">
+        <div class="onb-dot active" data-dot="0"></div>
+        <div class="onb-dot" data-dot="1"></div>
+        <div class="onb-dot" data-dot="2"></div>
+      </div>
+      <button class="btn" id="btnOnboardingNext">Agla</button>
+      <button class="btn secondary" id="btnOnboardingSkip" style="margin-top:8px;">Skip</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="locationOverlay">
+    <div class="overlay-card">
+      <button class="overlay-close-btn" id="btnCloseLocationOverlay" aria-label="Band Karein">✕</button>
+      <div class="ic">📍</div>
+      <h3>Location Chahiye</h3>
+      <p>Sahi Namaz timings dikhane ke liye humein apki location chahiye. Ye sirf timing calculate karne ke liye use hoti hai.</p>
+      <button class="btn" id="btnUseLocation">Location Allow Karein</button>
+      <button class="btn secondary" id="btnCloseLocationOverlay2" style="margin-top:8px;">Band Karein</button>
+    </div>
+  </div>
+
+  <!-- IMAGE LIGHTBOX -->
+  <div class="lightbox hidden" id="imageLightbox">
+    <button class="lightbox-close-btn" id="btnCloseLightbox" aria-label="Band Karein">✕</button>
+    <div class="lightbox-body">
+      <img id="lightboxImg" src="" alt="Post image">
+      <div class="lightbox-title hidden" id="lightboxTitle"></div>
+      <div class="lightbox-actions">
+        <button class="post-action-btn" id="lightboxLikeBtn" data-action="like"><span>🤍</span><span class="cnt">0</span></button>
+        <button class="post-action-btn" id="lightboxCommentBtn" data-action="comment"><span>💬</span><span class="cnt">0</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="bannedOverlay">
+    <div class="overlay-card">
+      <div class="ic">🚫</div>
+      <h3>Account Suspend Ho Gaya</h3>
+      <p>Baar baar community guidelines todne ki wajah se aapka account suspend kar diya gaya hai.</p>
+      <button class="btn secondary" id="btnBannedLogout">Logout</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+<script src="firebase-app.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == "sufynexsystems@gmail.com";
+    }
+
+    match /users/{uid} {
+      allow read: if true;
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    match /usernames/{name} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() &&
+        (resource.data.uid == request.auth.uid || isAdmin() ||
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount','commentsCount']));
+      allow delete: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+        allow update: if isSignedIn() &&
+          (resource.data.uid == request.auth.uid || isAdmin() ||
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']));
+        allow delete: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      }
+    }
+
+    match /likes/{likeId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow update: if false;
+    }
+
+    match /commentLikes/{likeId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow update: if false;
+    }
+
+    match /follows/{followId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.follower == request.auth.uid;
+      allow delete: if isSignedIn() && (resource.data.follower == request.auth.uid || isAdmin());
+      allow update: if false;
+    }
+
+    match /prayerLogs/{uid} {
+      allow read: if true;
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    match /dhikrLogs/{uid} {
+      allow read: if true;
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    match /dailyContent/{date} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.reporterUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /errorLogs/{logId} {
+      allow read, delete: if isAdmin();
+      allow create: if true; // errors can happen before/without sign-in too
+      allow update: if false;
+    }
+
+    match /dailyActiveUsers/{docId} {
+      allow read: if isAdmin();
+      allow create, update: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+  }
+}
