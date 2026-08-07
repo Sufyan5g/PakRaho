@@ -139,7 +139,28 @@ function isOfficialAccount(username){
 function verifiedBadgeHtml(username, tier){
   const effectiveTier = isOfficialAccount(username) ? 3 : (tier || 0);
   if(effectiveTier === 0) return '';
-  return `<svg class="verified-tick tier-${effectiveTier}" viewBox="0 0 22 22" width="15" height="15" aria-label="Verified"><path fill="currentColor" d="M11 0l2.39 1.7 2.87-.5 1.19 2.64 2.64 1.19-.5 2.87L21.29 10l-1.7 2.39.5 2.87-2.64 1.19-1.19 2.64-2.87-.5L11 20l-2.39-1.7-2.87.5-1.19-2.64-2.64-1.19.5-2.87L.71 10l1.7-2.39-.5-2.87 2.64-1.19L5.74 1.2l2.87.5L11 0z"/><path fill="var(--bg)" d="M9.3 14.2L5.6 10.5l1.4-1.4 2.3 2.3 5-5 1.4 1.4z"/></svg>`;
+  return `<svg class="verified-tick tier-${effectiveTier}" data-tier="${effectiveTier}" viewBox="0 0 22 22" width="15" height="15" aria-label="Verified"><path fill="currentColor" d="M11 0l2.39 1.7 2.87-.5 1.19 2.64 2.64 1.19-.5 2.87L21.29 10l-1.7 2.39.5 2.87-2.64 1.19-1.19 2.64-2.87-.5L11 20l-2.39-1.7-2.87.5-1.19-2.64-2.64-1.19.5-2.87L.71 10l1.7-2.39-.5-2.87 2.64-1.19L5.74 1.2l2.87.5L11 0z"/><path fill="var(--bg)" d="M9.3 14.2L5.6 10.5l1.4-1.4 2.3 2.3 5-5 1.4 1.4z"/></svg>`;
+}
+const VERIFIED_TIER_INFO = {
+  1: { name:'Normal Verified', desc:'Ye account Pak Raho team ne verify kiya hai.' },
+  2: { name:'Special Verified', desc:'Ye account community mein active/trusted contributor hai — Pak Raho team ne verify kiya hai.' },
+  3: { name:'Full Special Verified', desc:'Ye Pak Raho ka official account hai, ya ek highly trusted verified member hai.' },
+};
+function bindVerifiedTickClicks(){
+  document.addEventListener('click', (e) => {
+    const tick = e.target.closest('.verified-tick');
+    if(!tick) return;
+    e.stopPropagation();
+    const info = VERIFIED_TIER_INFO[tick.dataset.tier];
+    if(!info) return;
+    document.getElementById('verifiedInfoIcon').innerHTML = tick.outerHTML;
+    document.getElementById('verifiedInfoTitle').textContent = info.name;
+    document.getElementById('verifiedInfoDesc').textContent = info.desc;
+    document.getElementById('verifiedInfoOverlay').classList.remove('hidden');
+  });
+  document.getElementById('btnCloseVerifiedInfo').addEventListener('click', () => {
+    document.getElementById('verifiedInfoOverlay').classList.add('hidden');
+  });
 }
 
 /* ---------------- Toast ---------------- */
@@ -880,6 +901,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindOnboarding();
   bindPullToRefresh();
   bindErrorLogging();
+  bindVerifiedTickClicks();
 
   setTimeout(() => {
     const splash = document.getElementById('splashScreen');
@@ -958,9 +980,10 @@ function bindPullToRefresh(){
       indicator.classList.add('spinning');
       indicator.style.opacity = '1';
       indicator.style.transform = 'translate(-50%, 14px)';
-      // A genuine full reload — whatever page/view the person is currently
-      // on reloads completely, not just a partial data re-sync.
-      location.reload();
+      showToast('Refresh ho raha hai...');
+      // Let the spinner actually spin for a beat so the gesture feels real,
+      // then do a genuine full reload of whatever page the person is on.
+      setTimeout(() => location.reload(), 600);
     } else {
       indicator.style.opacity = '0';
       indicator.style.transform = 'translate(-50%, -40px)';
@@ -1425,6 +1448,7 @@ function handleAuthChange(user){
     state.blockedSet = new Set();
     checkBanned();
     updateAuthUI();
+    try{ localStorage.removeItem('cachedHeaderAvatar'); } catch(e){}
   }
   renderStreakViews();
   renderProfileView();
@@ -1454,6 +1478,12 @@ function attachUserListeners(uid){
     renderProfileView();
     renderFeed();
     updateAuthUI();
+    try{
+      localStorage.setItem('cachedHeaderAvatar', JSON.stringify({
+        uid, photoURL: state.profile.photoURL || null,
+        initial: (state.profile.nickname || state.profile.username || 'U').charAt(0).toUpperCase(),
+      }));
+    } catch(e){}
   }, (e) => showToast('Profile load nahi ho saka: ' + (e.code||'')));
   unsubPrayerLog = db.collection('prayerLogs').doc(uid).onSnapshot(doc => {
     state.remoteNamazLog = doc.exists ? doc.data() : { log:{} };
@@ -1564,6 +1594,19 @@ function bindAuthUI(){
       .then(() => { switchView('viewHome'); })
       .catch(err => errEl.textContent = authErrorMessage(err))
       .finally(() => setBtnLoading(btn, false));
+  });
+
+  document.getElementById('btnForgotPassword').addEventListener('click', () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const errEl = document.getElementById('loginError');
+    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      errEl.textContent = 'Pehle upar email box mein apna email daalein, phir "Password bhool gaye?" dabayein.';
+      return;
+    }
+    errEl.textContent = '';
+    auth.sendPasswordResetEmail(email)
+      .then(() => showToast('Reset link is email par bhej diya gaya: ' + email))
+      .catch(err => errEl.textContent = authErrorMessage(err));
   });
 
   document.getElementById('btnWizardNext1').addEventListener('click', () => {
@@ -2570,6 +2613,18 @@ function applySavedDisplayPrefs(){
     const app = document.getElementById('app');
     if(app) app.style.zoom = savedScale;
   }
+  try{
+    const cached = JSON.parse(localStorage.getItem('cachedHeaderAvatar') || 'null');
+    if(cached){
+      const btn = document.getElementById('profileBtn');
+      if(btn){
+        btn.innerHTML = cached.photoURL
+          ? `<img src="${cached.photoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+          : '';
+        if(!cached.photoURL) btn.textContent = cached.initial || '👤';
+      }
+    }
+  } catch(e){}
 }
 
 // Deletes everything the signed-in user owns (posts, likes, comment-likes, their

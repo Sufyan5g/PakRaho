@@ -57,6 +57,11 @@ body.light-theme{
 }
 .profile-loading-text{ font-size:12.5px; color:var(--text-muted); }
 
+.link-btn{
+  background:none; border:none; color:var(--gold-soft); font-size:12.5px;
+  text-decoration:underline; cursor:pointer; width:100%; text-align:center; padding:4px;
+}
+
 html,body{
   height:100%;
   background:var(--bg);
@@ -407,10 +412,10 @@ select.city-select{
   display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--gold-soft);
 }
 .post-uname{ font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:4px; }
-.verified-tick{ color:var(--gold); flex-shrink:0; }
-.verified-tick.tier-1{ color:#7FB8E8; }
-.verified-tick.tier-2{ color:var(--gold-soft); }
-.verified-tick.tier-3{ color:var(--gold); filter:drop-shadow(0 0 3px rgba(212,175,55,0.6)); }
+.verified-tick{ color:var(--gold); flex-shrink:0; cursor:pointer; }
+.verified-tick.tier-1{ color:#3FBE7A; }
+.verified-tick.tier-2{ color:#4FA8E8; }
+.verified-tick.tier-3{ color:#E8C547; filter:drop-shadow(0 0 3px rgba(232,197,71,0.6)); }
 .post-time{ font-size:10.5px; color:var(--text-muted); }
 .post-text{ font-size:13.5px; line-height:1.6; color:var(--text); white-space:pre-wrap; }
 .follow-btn{
