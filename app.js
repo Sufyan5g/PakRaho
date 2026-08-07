@@ -130,10 +130,12 @@ function isOfficialAccount(username){
   return typeof username === 'string' && username.toLowerCase() === 'pakraho';
 }
 // tier: 0 = none, 1 = Normal, 2 = Special, 3 = Full Special (also auto-applied
-// to the official "pakraho" account). Posts/comments carry their author's tier
-// as it was AT THE TIME they were posted (denormalized, same pattern as
-// username/photoURL) — if an admin changes someone's tier later, their older
-// posts keep showing the tier they had when posted, only new ones update.
+// to the official "pakraho" account). Posts/comments still carry a frozen
+// "authorTier" as a fallback (same denormalization pattern as
+// username/photoURL), but the feed overrides it with a live-refreshed
+// per-uid cache (see refreshTierCacheForPosts) so an older post picks up a
+// tier change made after it was posted, instead of staying stuck at
+// whatever tier its author had at posting time.
 function verifiedBadgeHtml(username, tier){
   const effectiveTier = isOfficialAccount(username) ? 3 : (tier || 0);
   if(effectiveTier === 0) return '';
@@ -203,6 +205,7 @@ function setBtnLoading(btn, loading){
 let state = {
   coords: null, timings: null, city: null,
   notifyOn: JSON.parse(localStorage.getItem('notifyPrefs') || '{"Fajr":true,"Dhuhr":true,"Asr":true,"Maghrib":true,"Isha":true}'),
+  notifyOffset: JSON.parse(localStorage.getItem('notifyOffsets') || '{"Fajr":0,"Dhuhr":0,"Asr":0,"Maghrib":0,"Isha":0}'),
   scheduledTimeouts: [],
   currentUser: null, profile: null,
   remoteNamazLog: null,   // { log:{date:{prayers}} }
@@ -213,6 +216,7 @@ let state = {
   feedMode: 'all',
   viewingUid: null,
   myLikedPostIds: new Set(),
+  userTierCache: new Map(), // uid -> verifiedTier, refreshed live (see refreshTierCacheForPosts)
   myLikedCommentIds: new Set(),
   currentComments: null,
   openPostId: null,
@@ -954,24 +958,9 @@ function bindPullToRefresh(){
       indicator.classList.add('spinning');
       indicator.style.opacity = '1';
       indicator.style.transform = 'translate(-50%, 14px)';
-      Promise.all([
-        state.currentUser ? Promise.resolve() : Promise.resolve(),
-        (async () => {
-          try{
-            const lat = parseFloat(localStorage.getItem('lastLat'));
-            const lng = parseFloat(localStorage.getItem('lastLng'));
-            if(lat && lng) await fetchTimings(lat, lng);
-          } catch(e){}
-        })(),
-      ]).finally(() => {
-        setTimeout(() => {
-          indicator.classList.remove('spinning');
-          indicator.style.opacity = '0';
-          indicator.style.transform = 'translate(-50%, -40px)';
-          refreshing = false;
-          showToast('Refresh ho gaya ✓');
-        }, 400);
-      });
+      // A genuine full reload — whatever page/view the person is currently
+      // on reloads completely, not just a partial data re-sync.
+      location.reload();
     } else {
       indicator.style.opacity = '0';
       indicator.style.transform = 'translate(-50%, -40px)';
@@ -1078,8 +1067,8 @@ async function fetchTimings(lat, lng){
 
 function cacheTimingsForOffline(){
   if(!('caches' in window)) return;
-  caches.open('pak-raho-v5').then(cache => {
-    const body = JSON.stringify({ timings: state.timings, notifyOn: state.notifyOn });
+  caches.open('pak-raho-notif-state').then(cache => {
+    const body = JSON.stringify({ timings: state.timings, notifyOn: state.notifyOn, notifyOffset: state.notifyOffset });
     cache.put('namaz-timings-data', new Response(body, { headers:{ 'Content-Type':'application/json' } }));
   }).catch(() => {});
 }
@@ -1115,8 +1104,13 @@ function finishLoad(){
   renderArc();
   updateCountdown();
   scheduleNotifications();
+  catchUpMissedNotifications();
   registerPeriodicSync();
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') catchUpMissedNotifications();
+  });
   setInterval(() => { updateCountdown(); renderArc(); }, 30000);
+  setInterval(catchUpMissedNotifications, 10*60*1000);
   document.getElementById('locationPill').textContent = state.city ? `📍 ${state.city}` : '';
 }
 
@@ -1143,15 +1137,20 @@ function renderPrayerList(){
   const list = document.getElementById('prayerList');
   const next = getNextPrayer();
   const isFriday = new Date().getDay() === 5;
+  const OFFSET_OPTIONS = [0,5,10,15,30];
   list.innerHTML = PRAYERS.map(p => {
     const isCurrent = next && p.key === next.key;
     const label = (p.key === 'Dhuhr' && isFriday) ? { ar:'جمعہ', rn:'Jummah' } : p;
     const on = state.notifyOn[p.key];
+    const offset = state.notifyOffset[p.key] || 0;
     return `
       <div class="prayer-row ${isCurrent?'current':''}">
         <div class="pname"><span class="ar">${label.ar}</span><span class="rn">${label.rn}</span></div>
         <div class="ptime-wrap">
           <span class="ptime">${to12h(state.timings[p.key])}</span>
+          <select class="notify-offset-select ${on?'':'hidden'}" data-key="${p.key}">
+            ${OFFSET_OPTIONS.map(o => `<option value="${o}" ${offset===o?'selected':''}>${o===0?'Waqt par':o+' min pehle'}</option>`).join('')}
+          </select>
           <div class="toggle ${on?'on':''}" data-key="${p.key}"><div class="dot"></div></div>
         </div>
       </div>`;
@@ -1167,8 +1166,20 @@ function renderPrayerList(){
       state.notifyOn[key] = turningOn;
       localStorage.setItem('notifyPrefs', JSON.stringify(state.notifyOn));
       t.classList.toggle('on');
+      const select = list.querySelector(`.notify-offset-select[data-key="${key}"]`);
+      if(select) select.classList.toggle('hidden', !turningOn);
       scheduleNotifications();
       cacheTimingsForOffline();
+    });
+  });
+  list.querySelectorAll('.notify-offset-select').forEach(sel => {
+    sel.addEventListener('click', (e) => e.stopPropagation());
+    sel.addEventListener('change', () => {
+      state.notifyOffset[sel.dataset.key] = parseInt(sel.value, 10);
+      localStorage.setItem('notifyOffsets', JSON.stringify(state.notifyOffset));
+      scheduleNotifications();
+      cacheTimingsForOffline();
+      showToast('Alert time update ho gaya ✓');
     });
   });
 }
@@ -1317,6 +1328,43 @@ function updateHijriPill(){
 
 /* ---------------- Notifications ---------------- */
 
+// Covers the single most common failure mode: the person simply wasn't
+// looking at the app the exact minute a prayer time hit, so the setTimeout
+// below (which only runs while this page is open) never got a chance to
+// fire. Every time the app opens or comes back to the foreground, check
+// whether today's already-passed prayers were missed and notify right away
+// — sharing the same "namaz-notified-today" cache entry the service worker
+// uses so a prayer never gets announced twice from two different paths.
+async function catchUpMissedNotifications(){
+  if(!state.timings || !('Notification' in window) || Notification.permission !== 'granted') return;
+  if(!('caches' in window)) return;
+  try{
+    const cache = await caches.open('pak-raho-notif-state');
+    const todayKey = `${new Date().getFullYear()}-${new Date().getMonth()+1}-${new Date().getDate()}`;
+    let notified = { date: todayKey, keys: [] };
+    const existing = await cache.match('namaz-notified-today');
+    if(existing){ try{ const parsed = await existing.json(); if(parsed.date === todayKey) notified = parsed; } catch(e){} }
+
+    const now = new Date();
+    const nowMins = now.getHours()*60 + now.getMinutes();
+    let changed = false;
+    PRAYERS.forEach(p => {
+      if(!state.notifyOn[p.key] || notified.keys.includes(p.key)) return;
+      const [h,m] = (state.timings[p.key]||'').split(':').map(Number);
+      if(isNaN(h)) return;
+      const mins = h*60+m;
+      if(nowMins >= mins && nowMins - mins <= 120){
+        const isFriday = now.getDay() === 5;
+        const label = (p.key === 'Dhuhr' && isFriday) ? 'Jummah' : p.rn;
+        fireNotification(`${label} ka waqt ho gaya`, 'Namaz ada karne ka waqt aa gaya hai.');
+        notified.keys.push(p.key);
+        changed = true;
+      }
+    });
+    if(changed) await cache.put('namaz-notified-today', new Response(JSON.stringify(notified)));
+  } catch(e){ /* best-effort only */ }
+}
+
 function scheduleNotifications(){
   state.scheduledTimeouts.forEach(clearTimeout);
   state.scheduledTimeouts = [];
@@ -1327,11 +1375,15 @@ function scheduleNotifications(){
     if(!state.notifyOn[p.key]) return;
     const [h,m] = state.timings[p.key].split(':').map(Number);
     const target = new Date(); target.setHours(h,m,0,0);
+    target.setMinutes(target.getMinutes() - (state.notifyOffset[p.key] || 0));
     if(target <= now) return;
     const ms = target - now;
     const isFriday = target.getDay() === 5;
     const label = (p.key === 'Dhuhr' && isFriday) ? 'Jummah' : p.rn;
-    const t = setTimeout(() => fireNotification(`${label} ka waqt ho gaya`, 'Namaz ada karne ka waqt aa gaya hai.'), ms);
+    const offset = state.notifyOffset[p.key] || 0;
+    const title = offset > 0 ? `${label} ${offset} minute mein hai` : `${label} ka waqt ho gaya`;
+    const body = offset > 0 ? 'Namaz ki taiyari karein.' : 'Namaz ada karne ka waqt aa gaya hai.';
+    const t = setTimeout(() => fireNotification(title, body), ms);
     state.scheduledTimeouts.push(t);
   });
 }
@@ -1651,8 +1703,40 @@ function attachFeedListener(){
       changes.forEach(c => { if(c.type === 'modified') syncPostCardDOM(c.doc.id); });
       refreshProfilePostsIfVisible();
     }
+    refreshTierCacheForPosts(state.posts);
   }, (e) => {
     document.getElementById('feedList').innerHTML = `<div class="note-box">Feed load nahi ho saka: ${e.code || e.message}</div>`;
+  });
+}
+
+// The verified-tier badge on a post used to read a "authorTier" value frozen
+// onto the post document at the moment it was created — so verifying someone
+// AFTER they'd already posted left all their older posts un-badged even
+// though their profile/comments showed it correctly. This keeps a live
+// uid → tier cache (refreshed from the real users doc) so every post always
+// reflects the person's *current* badge, not whatever it was when they posted.
+async function refreshTierCacheForPosts(posts){
+  const uids = [...new Set(posts.map(p => p.uid))].filter(uid => uid && !state.userTierCache.has(uid));
+  if(!uids.length) return;
+  for(let i=0; i<uids.length; i+=10){
+    const chunk = uids.slice(i, i+10);
+    try{
+      const snap = await db.collection('users').where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get();
+      snap.docs.forEach(d => state.userTierCache.set(d.id, d.data().verifiedTier || 0));
+    } catch(e){ /* non-fatal — badge just falls back silently */ }
+    chunk.forEach(uid => { if(!state.userTierCache.has(uid)) state.userTierCache.set(uid, 0); });
+  }
+  document.querySelectorAll('.post-uname[data-uid]').forEach(el => {
+    const uid = el.dataset.uid;
+    if(state.userTierCache.has(uid)){
+      const tick = el.querySelector('.verified-tick');
+      const wantsTick = state.userTierCache.get(uid) > 0 || isOfficialAccount(el.dataset.username);
+      if(wantsTick && !tick){
+        el.insertAdjacentHTML('beforeend', verifiedBadgeHtml(el.dataset.username, state.userTierCache.get(uid)));
+      } else if(!wantsTick && tick){
+        tick.remove();
+      }
+    }
   });
 }
 
@@ -1688,7 +1772,7 @@ function buildPostCardHtml(p){
       <div class="post-head">
         <div class="post-author clickable" data-uid="${p.uid}">
           <div class="post-avatar">${avatarHtml}</div>
-          <div><div class="post-uname">${escapeHtml(displayName)}${verifiedBadgeHtml(p.username, p.authorTier)}</div><div class="post-time">${timeAgo(p.createdAt)}</div></div>
+          <div><div class="post-uname" data-uid="${p.uid}" data-username="${escapeHtml(p.username||'')}">${escapeHtml(displayName)}${verifiedBadgeHtml(p.username, state.userTierCache.has(p.uid) ? state.userTierCache.get(p.uid) : p.authorTier)}</div><div class="post-time">${timeAgo(p.createdAt)}</div></div>
         </div>
         ${isOwn ? '' : `<button class="follow-btn ${isFollowing?'following':''}" data-uid="${p.uid}" data-uname="${escapeHtml(p.username||'User')}">${isFollowing?'Following':'Follow'}</button>`}
         <button class="post-menu-btn" data-action="menu" data-id="${p.id}" data-uid="${p.uid}">⋮</button>
@@ -2225,7 +2309,7 @@ function renderProfileView(){
     const p = state.profile || {};
     renderProfileCard(el, { uid: state.currentUser.uid, ...p, username: p.username || 'User' }, true, myToken);
   } else {
-    el.innerHTML = `<div class="skeleton-row" style="margin-top:20px;"></div><div class="skeleton-row"></div>`;
+    el.innerHTML = `<div class="profile-loading"><div class="profile-loading-spinner"></div><div class="profile-loading-text">Profile load ho raha hai...</div></div>`;
     db.collection('users').doc(viewingUid).get().then(doc => {
       if(myToken !== profileRenderToken) return; // a newer render superseded this one
       if(!doc.exists){ el.innerHTML = `<div class="note-box">User nahi mila.</div>`; return; }
@@ -2684,7 +2768,9 @@ async function runSearch(term){
         const name = safeDisplayName(u.nickname || u.username);
         const initial = name.charAt(0).toUpperCase();
         const avatar = u.photoURL ? `<img src="${u.photoURL}">` : initial;
-        return `<div class="search-user-row" data-uid="${u.uid}"><div class="search-user-avatar">${avatar}</div><div><div style="display:inline-flex; align-items:center; gap:4px;">${escapeHtml(name)}${verifiedBadgeHtml(u.username, u.verifiedTier)}</div><div style="font-size:11px; color:var(--text-muted);">@${escapeHtml(u.username && !u.username.includes('@') ? u.username : 'user')}</div></div></div>`;
+        const isOwnResult = state.currentUser && u.uid === state.currentUser.uid;
+        const isFollowingResult = state.followingSet.has(u.uid);
+        return `<div class="search-user-row" data-uid="${u.uid}"><div class="search-user-avatar">${avatar}</div><div style="flex:1;"><div style="display:inline-flex; align-items:center; gap:4px;">${escapeHtml(name)}${verifiedBadgeHtml(u.username, u.verifiedTier)}</div><div style="font-size:11px; color:var(--text-muted);">@${escapeHtml(u.username && !u.username.includes('@') ? u.username : 'user')}</div></div>${isOwnResult ? '' : `<button class="follow-btn ${isFollowingResult?'following':''}" data-uid="${u.uid}" data-uname="${escapeHtml(u.username||'User')}">${isFollowingResult?'Following':'Follow'}</button>`}</div>`;
       }).join('');
     }
     if(matchingPosts.length){
@@ -2692,7 +2778,16 @@ async function runSearch(term){
     }
 
     results.innerHTML = html;
-    results.querySelectorAll('.search-user-row').forEach(row => row.addEventListener('click', () => { document.getElementById('searchSheet').classList.add('hidden'); openProfile(row.dataset.uid); }));
+    results.querySelectorAll('.search-user-row').forEach(row => row.addEventListener('click', (e) => {
+      if(e.target.closest('.follow-btn')) return;
+      document.getElementById('searchSheet').classList.add('hidden'); openProfile(row.dataset.uid);
+    }));
+    results.querySelectorAll('.search-user-row .follow-btn').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFollow(btn.dataset.uid, btn.dataset.uname);
+      btn.classList.toggle('following');
+      btn.textContent = btn.classList.contains('following') ? 'Following' : 'Follow';
+    }));
     bindPostCardEvents(results);
 
     const shownIds = new Set(matchingPosts.map(p => p.id));
@@ -2821,24 +2916,38 @@ function startQibla(){
     statusEl.textContent = `Qibla ka bearing: ${Math.round(qiblaBearing)}° (North se). Compass permission maangi ja rahi hai...`;
 
     const needle = document.getElementById('qiblaNeedle');
+    let gotOrientationEvent = false;
 
     const handleOrientation = (e) => {
       let heading = null;
-      if(typeof e.webkitCompassHeading === 'number') heading = e.webkitCompassHeading;
-      else if(e.absolute && e.alpha != null) heading = 360 - e.alpha;
-      else if(e.alpha != null) heading = 360 - e.alpha;
+      if(typeof e.webkitCompassHeading === 'number') heading = e.webkitCompassHeading; // iOS Safari
+      else if(e.alpha != null) heading = 360 - e.alpha; // Android (absolute or relative)
       if(heading == null) return;
+      gotOrientationEvent = true;
       const rotation = (qiblaBearing - heading + 360) % 360;
       needle.style.transform = `rotate(${rotation}deg)`;
       statusEl.textContent = `Kaaba is taraf hai — phone ghumate rahein jab tak icon seedha upar na ho.`;
     };
 
+    // Some Android phones/browsers report deviceorientation support (the
+    // property exists) but never actually fire an event — no magnetometer,
+    // permission silently blocked, etc. Without this timeout the screen was
+    // stuck forever on "compass permission maangi ja rahi hai" with no
+    // explanation. After a few seconds with nothing received, fall back to
+    // showing the numeric bearing so the person can still use it manually.
+    const fallbackTimer = setTimeout(() => {
+      if(!gotOrientationEvent){
+        statusEl.textContent = `Is device par compass sensor response nahi de raha. Qibla bearing: ${Math.round(qiblaBearing)}° (North se, clockwise ghumayein — phone ka apna compass app North dikhata hai, wahan se match karein).`;
+      }
+    }, 3000);
+
     if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
       try{
         const perm = await DeviceOrientationEvent.requestPermission();
         if(perm === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-        else statusEl.textContent = `Compass permission nahi mili. Qibla bearing: ${Math.round(qiblaBearing)}° (North se, clockwise).`;
+        else { clearTimeout(fallbackTimer); statusEl.textContent = `Compass permission nahi mili. Qibla bearing: ${Math.round(qiblaBearing)}° (North se, clockwise).`; }
       } catch(e){
+        clearTimeout(fallbackTimer);
         statusEl.textContent = `Compass is device par kaam nahi kar raha. Qibla bearing: ${Math.round(qiblaBearing)}° (North se, clockwise).`;
       }
     } else if('ondeviceorientationabsolute' in window){
@@ -2846,6 +2955,7 @@ function startQibla(){
     } else if('ondeviceorientation' in window){
       window.addEventListener('deviceorientation', handleOrientation);
     } else {
+      clearTimeout(fallbackTimer);
       statusEl.textContent = `Is device/browser mein compass sensor nahi mila. Qibla bearing: ${Math.round(qiblaBearing)}° (North se, clockwise ghumayein).`;
     }
   }, () => {

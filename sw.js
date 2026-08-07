@@ -1,4 +1,5 @@
-const CACHE_NAME = 'pak-raho-v7';
+const CACHE_NAME = 'pak-raho-v8';
+const NOTIF_STATE_CACHE = 'pak-raho-notif-state'; // never bumped — shared stable key between SW and main thread
 const APP_SHELL = [
   './',
   './index.html',
@@ -105,23 +106,43 @@ self.addEventListener('sync', (event) => {
 
 async function checkAndNotify() {
   try {
-    const cache = await caches.open(CACHE_NAME);
+    const cache = await caches.open(NOTIF_STATE_CACHE);
     const res = await cache.match('namaz-timings-data');
     if (!res) return;
     const data = await res.json();
     if (!data || !data.timings) return;
+
     const now = new Date();
     const nowMins = now.getHours() * 60 + now.getMinutes();
+    const todayKey = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
+
+    // Track which prayers were already notified today so a delayed sync run
+    // (Chrome frequently fires periodicsync hours later than the requested
+    // interval, not on a precise schedule) still catches a prayer whose exact
+    // minute has already passed, without ever notifying twice for the same one.
+    const notifiedRes = await cache.match('namaz-notified-today');
+    let notified = { date: todayKey, keys: [] };
+    if (notifiedRes) {
+      try { const parsed = await notifiedRes.json(); if (parsed.date === todayKey) notified = parsed; } catch(e){}
+    }
+
     for (const key of Object.keys(data.timings)) {
+      if (!(data.notifyOn && data.notifyOn[key])) continue;
+      if (notified.keys.includes(key)) continue;
       const [h, m] = data.timings[key].split(':').map(Number);
       const mins = h * 60 + m;
-      if (Math.abs(mins - nowMins) <= 1 && data.notifyOn && data.notifyOn[key]) {
+      // Catch anything from exactly-on-time up to 2 hours late (covers a
+      // throttled/delayed sync run) but never a future prayer.
+      if (nowMins >= mins && nowMins - mins <= 120) {
         self.registration.showNotification(`${key} ka waqt ho gaya`, {
           body: 'Namaz ada karne ka waqt aa gaya hai.',
           icon: 'icons/icon-192.png',
           tag: 'namaz-alert-' + key,
+          vibrate: [200, 100, 200],
         });
+        notified.keys.push(key);
       }
     }
+    await cache.put('namaz-notified-today', new Response(JSON.stringify(notified)));
   } catch (e) { /* ignore */ }
 }
